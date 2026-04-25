@@ -53,8 +53,15 @@ export default function JobsGrid({
 
   useEffect(() => {
     const onRef = () => load();
+    const onVis = () => { if (document.visibilityState === "visible") load(); };
     window.addEventListener("jobs:refresh", onRef);
-    return () => window.removeEventListener("jobs:refresh", onRef);
+    window.addEventListener("focus", onRef);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("jobs:refresh", onRef);
+      window.removeEventListener("focus", onRef);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, []);
 
   const visibleJobs = useMemo(

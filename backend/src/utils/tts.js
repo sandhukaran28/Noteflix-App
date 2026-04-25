@@ -53,14 +53,14 @@ async function synthesizePodcast(scriptLines, outPath, isDuet, voices = {}) {
     parts.push(wav);
 
     const pad = path.join(tmpDir, `sil-${String(i+1).padStart(3,"0")}.wav`);
-    await sh(`ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=mono -t 0.20 "${pad}" >/dev/null 2>&1`);
+    await sh(`ffmpeg -y -f lavfi -i anullsrc=r=22050:cl=mono -t 0.20 -c:a pcm_s16le "${pad}"`);
     parts.push(pad);
   }
 
   const concatList = path.join(tmpDir, "concat.txt");
   fs.writeFileSync(concatList, parts.map(f => `file '${f.replace(/'/g, "'\\''")}'`).join("\n"), "utf8");
 
-  const r2 = await sh(`ffmpeg -y -f concat -safe 0 -i "${concatList}" -ar 44100 -ac 1 -c:a pcm_s16le "${outPath}"`);
+  const r2 = await sh(`ffmpeg -y -f concat -safe 0 -i "${concatList}" -ar 22050 -ac 1 -c:a pcm_s16le "${outPath}"`);
   if (r2.status !== 0 || !fs.existsSync(outPath)) {
     throw new Error(`ffmpeg concat failed: ${r2.stderr || r2.stdout}`);
   }

@@ -158,7 +158,7 @@ r.get("/", async (req, res) => {
       items: paged,
     };
 
-    await setJSON(listKey, payload, 60);
+    await setJSON(listKey, payload, 3);
     res.setHeader("X-Total-Count", String(total));
     res.setHeader("X-Cache", "MISS");
     res.json(payload);
@@ -178,7 +178,7 @@ r.get("/:id", async (req, res) => {
     let row = await getJSON(key);
     if (!row) {
       row = await getItem(userId, sks.job(req.params.id));
-      if (row) await setJSON(key, row, 60);
+      if (row) await setJSON(key, row, 3);
       res.setHeader("X-Cache", "MISS");
     } else {
       res.setHeader("X-Cache", "HIT");
