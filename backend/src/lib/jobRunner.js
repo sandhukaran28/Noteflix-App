@@ -14,9 +14,11 @@ const OUT_DIR = path.join(DATA_ROOT, "outputs");
 fs.mkdirSync(TMP_DIR, { recursive: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
+const MAX_DURATION = 60;
+
 const DEFAULTS = {
   style: "kenburns",
-  duration: 90,
+  duration: MAX_DURATION,
   dialogue: "solo",
   encodeProfile: "balanced",
 };
@@ -24,6 +26,7 @@ const DEFAULTS = {
 async function createAndStartJob({ userId, asset, ownerSub, params = {}, user = null }) {
   await assertCanCreateJob(userId, user);
   const merged = { ...DEFAULTS, ...params };
+  merged.duration = Math.max(15, Math.min(MAX_DURATION, Number(merged.duration) || MAX_DURATION));
 
   const id = uuid();
   const jobDir = path.join(TMP_DIR, id);

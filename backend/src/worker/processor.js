@@ -171,7 +171,7 @@ async function processJob(id, asset, ctx) {
       }
 
       const wpm = 150;
-      const targetSeconds = Math.max(30, Math.min(600, Number(ctx.duration || 90)));
+      const targetSeconds = Math.max(15, Math.min(60, Number(ctx.duration || 60)));
       const targetWords = Math.round((wpm / 60) * targetSeconds);
 
       const duet = ctx.dialogue === "duet";
