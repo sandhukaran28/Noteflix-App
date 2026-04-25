@@ -56,7 +56,7 @@ export default function Dashboard({
       >
         {view === "home" && (
           <div className="grid gap-8 max-w-6xl">
-            <HeroUpload token={token} onQuotaExceeded={onQuotaExceeded} />
+            <HeroUpload token={token} quota={quota} onQuotaExceeded={onQuotaExceeded} />
             <section>
               <div className="flex items-end justify-between mb-3">
                 <h2 className="text-lg font-semibold">Recent generations</h2>

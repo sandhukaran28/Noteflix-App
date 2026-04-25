@@ -1,13 +1,16 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { Select } from "@/components/ui/Select";
+import type { Quota } from "@/hooks/useQuota";
 
 export default function HeroUpload({
   token,
+  quota,
   onQuotaExceeded,
 }: {
   token: string;
+  quota: Quota | null;
   onQuotaExceeded: (info: { used: number; limit: number; message: string }) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -15,9 +18,16 @@ export default function HeroUpload({
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [encodeProfile, setEncodeProfile] = useState("balanced");
-  const [dialogue, setDialogue] = useState("solo");
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isPro = !!quota?.isPro;
+
+  // auto-clear status after 6s so it doesn't linger after the job is done
+  useEffect(() => {
+    if (!msg) return;
+    const t = setTimeout(() => setMsg(""), 6000);
+    return () => clearTimeout(t);
+  }, [msg]);
 
   const startUpload = async (f: File) => {
     setBusy(true);
@@ -26,7 +36,7 @@ export default function HeroUpload({
     const fd = new FormData();
     fd.append("file", f);
     fd.append("encodeProfile", encodeProfile);
-    fd.append("dialogue", dialogue);
+    fd.append("dialogue", "duet");
     try {
       const res: any = await api("/assets", { method: "POST", token, form: true, body: fd });
       if (res?.quotaError) {
@@ -37,7 +47,7 @@ export default function HeroUpload({
         });
         setMsg("Uploaded, but quota reached — couldn't start the job.");
       } else if (res?.jobId) {
-        setMsg(`Generating video… (job ${String(res.jobId).slice(0, 8)})`);
+        setMsg("Upload complete — watch the card below for progress.");
       } else {
         setMsg("Uploaded.");
       }
@@ -89,25 +99,21 @@ export default function HeroUpload({
         </svg>
       </div>
       <h2 className="text-2xl font-semibold text-gray-900">Drop a PDF to generate a video</h2>
-      <p className="text-gray-500 mt-1">We'll extract slides, write a podcast-style script, narrate it, and render an MP4.</p>
+      <p className="text-gray-500 mt-1">We'll extract slides, write a podcast-style script, narrate it as a duet, and render an MP4.</p>
 
-      <div className="mt-5 flex flex-wrap justify-center gap-3">
+      <div className="mt-5 flex flex-wrap justify-center gap-3 items-end">
         <Select
           label=""
           value={encodeProfile}
           onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEncodeProfile(e.target.value)}
         >
-          <option value="balanced">Balanced (1080p)</option>
-          <option value="heavy">Heavy (1440p)</option>
-          <option value="insane">Insane (4K)</option>
-        </Select>
-        <Select
-          label=""
-          value={dialogue}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDialogue(e.target.value)}
-        >
-          <option value="solo">Solo narrator</option>
-          <option value="duet">Duet (Alex &amp; Sam)</option>
+          <option value="balanced">Balanced (720p) — fastest</option>
+          <option value="heavy" disabled={!isPro}>
+            Heavy (1440p, 2-pass){isPro ? "" : " — Pro only"}
+          </option>
+          <option value="insane" disabled={!isPro}>
+            Insane (4K, 2-pass){isPro ? "" : " — Pro only"}
+          </option>
         </Select>
       </div>
 

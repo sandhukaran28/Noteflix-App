@@ -5,7 +5,7 @@ const fs = require("fs");
 const { v4: uuid } = require("uuid");
 const { DDB_PK_NAME, sks, putItem, putJobEvent } = require("../ddb");
 const { bumpVersion } = require("./cache");
-const { assertCanCreateJob } = require("./quota");
+const { assertCanCreateJob, isPro } = require("./quota");
 const { processJob } = require("../worker/processor");
 
 const DATA_ROOT = process.env.DATA_ROOT || "./data";
@@ -19,14 +19,20 @@ const MAX_DURATION = 60;
 const DEFAULTS = {
   style: "kenburns",
   duration: MAX_DURATION,
-  dialogue: "solo",
+  dialogue: "duet",
   encodeProfile: "balanced",
 };
+
+const PRO_ONLY_PROFILES = new Set(["heavy", "insane"]);
 
 async function createAndStartJob({ userId, asset, ownerSub, params = {}, user = null }) {
   await assertCanCreateJob(userId, user);
   const merged = { ...DEFAULTS, ...params };
   merged.duration = Math.max(15, Math.min(MAX_DURATION, Number(merged.duration) || MAX_DURATION));
+  merged.dialogue = "duet"; // solo voice has glitches; force duet for now
+  if (!isPro(user) && PRO_ONLY_PROFILES.has(merged.encodeProfile)) {
+    merged.encodeProfile = "balanced";
+  }
 
   const id = uuid();
   const jobDir = path.join(TMP_DIR, id);
