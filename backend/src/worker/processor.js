@@ -2,7 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { spawn, spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 const { pipeline } = require("stream/promises");
 const { synthesizePodcast } = require("../utils/tts");
 const { fetchWikiSummary } = require("../utils/wiki");
@@ -31,11 +31,19 @@ function s3KeyForJob(jobId) {
 }
 
 function sh(cmd, opts = {}) {
-  return spawnSync("bash", ["-lc", cmd], { encoding: "utf8", ...opts });
+  return new Promise((resolve) => {
+    const child = spawn("bash", ["-lc", cmd], { ...opts });
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (d) => { stdout += d.toString(); });
+    child.stderr?.on("data", (d) => { stderr += d.toString(); });
+    child.on("close", (code) => resolve({ stdout, stderr, status: code ?? -1 }));
+    child.on("error", (err) => resolve({ stdout: "", stderr: String(err), status: -1 }));
+  });
 }
 
-function hasCmd(name) {
-  const r = sh(`command -v ${name} || which ${name} || true`);
+async function hasCmd(name) {
+  const r = await sh(`command -v ${name} || which ${name} || true`);
   return r.status === 0 && r.stdout.trim().length > 0;
 }
 
@@ -44,15 +52,10 @@ async function downloadS3ToFile(bucket, key, toPath) {
   await pipeline(resp.Body, fs.createWriteStream(toPath));
 }
 
-function getAudioDuration(file) {
+async function getAudioDuration(file) {
   try {
-    const out = spawnSync(
-      "bash",
-      [
-        "-lc",
-        `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${file}"`,
-      ],
-      { encoding: "utf8" }
+    const out = await sh(
+      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${file}"`
     );
     if (out.status === 0) return Math.ceil(parseFloat(out.stdout.trim()));
   } catch (e) {}
@@ -135,31 +138,32 @@ async function processJob(id, asset, ctx) {
     }
 
     if (isPdf) {
-      if (!hasCmd("pdftoppm"))
+      if (!(await hasCmd("pdftoppm")))
         throw new Error("pdftoppm not found (install poppler-utils)");
-      const p1 = sh(`pdftoppm -png "${sourcePath}" "${jobDir}/slide"`);
+      const p1 = await sh(`pdftoppm -png "${sourcePath}" "${jobDir}/slide"`);
       log(p1.stdout || "");
       log(p1.stderr || "");
       if (p1.status !== 0) throw new Error("pdf->images failed");
     } else {
       const slide1 = path.join(jobDir, "slide-001.png");
-      const p1 = sh(`cp "${sourcePath}" "${slide1}"`);
+      const p1 = await sh(`cp "${sourcePath}" "${slide1}"`);
       log(p1.stderr || "");
       if (p1.status !== 0) throw new Error("copy image failed");
     }
 
-    const ls = sh(`ls -l "${jobDir}" | head -n 40`);
+    const ls = await sh(`ls -l "${jobDir}" | head -n 40`);
     log(ls.stdout || "");
     log(ls.stderr || "");
 
     let scriptText = "";
     if (isPdf) {
-      if (!hasCmd("pdftotext"))
+      const hasPdftotext = await hasCmd("pdftotext");
+      if (!hasPdftotext)
         log("WARN: pdftotext not found; using fallback summary prompt.");
       let notes = "";
-      if (hasCmd("pdftotext")) {
+      if (hasPdftotext) {
         const textPath = path.join(ctx.jobDir, "notes.txt");
-        const t1 = sh(`pdftotext "${sourcePath}" "${textPath}"`);
+        const t1 = await sh(`pdftotext "${sourcePath}" "${textPath}"`);
         log(t1.stderr || "");
         if (t1.status === 0 && fs.existsSync(textPath)) {
           notes = fs.readFileSync(textPath, "utf8");
@@ -281,7 +285,7 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
 
     let totalDuration = ctx.duration || 90;
     if (hasAudio) {
-      const dur = getAudioDuration(narrationPath);
+      const dur = await getAudioDuration(narrationPath);
       if (dur && dur > 0) {
         totalDuration = dur;
         log(`Detected narration length: ${dur}s`);
@@ -357,7 +361,7 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
         resolution: { width: outW, height: outH },
         profile,
         hasAudio: !!hasAudio,
-        audioSeconds: hasAudio ? getAudioDuration(narrationPath) : 0,
+        audioSeconds: hasAudio ? (await getAudioDuration(narrationPath)) : 0,
         cpuSeconds,
         outputBytes: outputStat?.size || 0,
       };

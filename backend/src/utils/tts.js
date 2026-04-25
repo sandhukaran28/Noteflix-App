@@ -1,24 +1,29 @@
-// utils/tts.js
+"use strict";
 const fs = require("fs");
 const path = require("path");
-const { spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 
 function sh(cmd) {
-  return spawnSync("bash", ["-lc", cmd], { encoding: "utf8" });
+  return new Promise((resolve) => {
+    const child = spawn("bash", ["-lc", cmd]);
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (d) => { stdout += d.toString(); });
+    child.stderr?.on("data", (d) => { stderr += d.toString(); });
+    child.on("close", (code) => resolve({ stdout, stderr, status: code ?? -1 }));
+    child.on("error", (err) => resolve({ stdout: "", stderr: String(err), status: -1 }));
+  });
 }
 
-function hasCmd(name) {
-  const r = sh(`command -v ${name} || which ${name} || true`);
+async function hasCmd(name) {
+  const r = await sh(`command -v ${name} || which ${name} || true`);
   return r.status === 0 && r.stdout.trim().length > 0;
 }
 
 const PIPER_BIN = process.env.PIPER_BIN || "piper";
 
-/**
- * scriptLines: array of strings...
- */
 async function synthesizePodcast(scriptLines, outPath, isDuet, voices = {}) {
-  if (!hasCmd(PIPER_BIN)) {
+  if (!(await hasCmd(PIPER_BIN))) {
     throw new Error(`${PIPER_BIN} not found. Install Piper TTS and/or set PIPER_BIN`);
   }
   const { voiceA, voiceB } = voices;
@@ -41,21 +46,21 @@ async function synthesizePodcast(scriptLines, outPath, isDuet, voices = {}) {
     fs.writeFileSync(txt, line + "\n", "utf8");
 
     const cmd = `${PIPER_BIN} --model "${model}" --input_file "${txt}" --output_file "${wav}" --sentence_silence 0.15`;
-    const r = sh(cmd);
+    const r = await sh(cmd);
     if (r.status !== 0 || !fs.existsSync(wav)) {
       throw new Error(`piper failed for segment ${i+1}: ${r.stderr || r.stdout}`);
     }
     parts.push(wav);
 
     const pad = path.join(tmpDir, `sil-${String(i+1).padStart(3,"0")}.wav`);
-    sh(`ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=mono -t 0.20 "${pad}" >/dev/null 2>&1`);
+    await sh(`ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=mono -t 0.20 "${pad}" >/dev/null 2>&1`);
     parts.push(pad);
   }
 
   const concatList = path.join(tmpDir, "concat.txt");
   fs.writeFileSync(concatList, parts.map(f => `file '${f.replace(/'/g, "'\\''")}'`).join("\n"), "utf8");
 
-  const r2 = sh(`ffmpeg -y -f concat -safe 0 -i "${concatList}" -ar 44100 -ac 1 -c:a pcm_s16le "${outPath}"`);
+  const r2 = await sh(`ffmpeg -y -f concat -safe 0 -i "${concatList}" -ar 44100 -ac 1 -c:a pcm_s16le "${outPath}"`);
   if (r2.status !== 0 || !fs.existsSync(outPath)) {
     throw new Error(`ffmpeg concat failed: ${r2.stderr || r2.stdout}`);
   }
