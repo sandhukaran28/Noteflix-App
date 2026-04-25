@@ -102,8 +102,21 @@ export default function JobDetails({
   }, [onClose]);
 
   const title = assetTitle(job?._asset, job.id);
-  const BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/+$/, "");
-  const downloadHref = `${BASE}/jobs/${job.id}/output`;
+
+  const onDownload = async () => {
+    try {
+      const r = await api<{ url: string }>(`/jobs/${job.id}/output-url`, { token });
+      if (!r?.url) throw new Error("no url");
+      const a = document.createElement("a");
+      a.href = r.url;
+      a.download = `noteflix-${String(job.id).slice(0, 8)}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e: any) {
+      alert("Download failed: " + (e?.message || "unknown"));
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4 animate-in" onClick={onClose}>
@@ -151,13 +164,12 @@ export default function JobDetails({
           <div className="flex items-center gap-2">
             <StatusPill status={status} />
             {isDone && (
-              <a
-                href={downloadHref}
-                download={`noteflix-${String(job.id).slice(0, 8)}.mp4`}
+              <button
+                onClick={onDownload}
                 className="px-3 py-2 rounded-xl text-sm font-medium bg-[#a28ff3] text-white hover:opacity-90"
               >
                 Download MP4
-              </a>
+              </button>
             )}
           </div>
         </div>

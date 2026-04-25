@@ -5,7 +5,7 @@ const { spawn } = require("child_process");
 
 function sh(cmd) {
   return new Promise((resolve) => {
-    const child = spawn("bash", ["-lc", cmd]);
+    const child = spawn("bash", ["-c", cmd]);
     let stdout = "";
     let stderr = "";
     child.stdout?.on("data", (d) => { stdout += d.toString(); });

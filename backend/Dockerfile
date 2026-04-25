@@ -31,7 +31,7 @@ RUN mkdir -p /app/models && cd /app/models && \
 ENV NODE_ENV=production \
     DATA_ROOT=/data \
     PORT=8080 \
-    PIPER_BIN=piper \
+    PIPER_BIN=/opt/venv/bin/piper \
     PIPER_VOICE_A=/app/models/en_US-amy-medium.onnx \
     PIPER_VOICE_B=/app/models/en_US-ryan-high.onnx
 

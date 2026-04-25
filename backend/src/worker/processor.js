@@ -32,7 +32,7 @@ function s3KeyForJob(jobId) {
 
 function sh(cmd, opts = {}) {
   return new Promise((resolve) => {
-    const child = spawn("bash", ["-lc", cmd], { ...opts });
+    const child = spawn("bash", ["-c", cmd], { ...opts });
     let stdout = "";
     let stderr = "";
     child.stdout?.on("data", (d) => { stdout += d.toString(); });
@@ -326,14 +326,14 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
       const passlog = path.join(ctx.jobDir, "ffpass");
       const cmd1 = `ffmpeg -y -threads 0 -framerate ${fr} -pattern_type glob -i "${ctx.jobDir}/slide-*.png" ${hasAudio ? `-i "${narrationPath}"` : ""} -filter_complex "${vf}" -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p -an -pass 1 -passlogfile "${passlog}" -f mp4 /dev/null`;
       log("ENC PASS1: " + cmd1);
-      const enc1 = spawn("bash", ["-lc", cmd1]);
+      const enc1 = spawn("bash", ["-c", cmd1]);
       enc1.stdout.on("data", (d) => log(d.toString()));
       enc1.stderr.on("data", (d) => log(d.toString()));
       await new Promise((resolve) => enc1.on("close", resolve));
 
       const cmd2 = `ffmpeg -y -threads 0 -framerate ${fr} -pattern_type glob -i "${ctx.jobDir}/slide-*.png" ${hasAudio ? `-i "${narrationPath}"` : ""} -filter_complex "${vf}" -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p ${hasAudio ? `${af} -c:a aac -b:a 192k` : ""} -movflags +faststart -shortest -pass 2 -passlogfile "${passlog}" "${ctx.outputPath}"`;
       log("ENC PASS2: " + cmd2);
-      const enc2 = spawn("bash", ["-lc", cmd2]);
+      const enc2 = spawn("bash", ["-c", cmd2]);
       enc2.stdout.on("data", (d) => log(d.toString()));
       enc2.stderr.on("data", (d) => log(d.toString()));
       await new Promise((resolve) => enc2.on("close", resolve));
@@ -342,7 +342,7 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
         ? `ffmpeg -y -threads 0 -framerate ${fr} -pattern_type glob -i "${ctx.jobDir}/slide-*.png" -i "${narrationPath}" -filter_complex "${vf}" -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p ${af} -c:a aac -b:a 192k -movflags +faststart -shortest "${ctx.outputPath}"`
         : `ffmpeg -y -threads 0 -framerate ${fr} -pattern_type glob -i "${ctx.jobDir}/slide-*.png" -filter_complex "${vf}" -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p -movflags +faststart "${ctx.outputPath}"`;
       log("ENC: " + cmd);
-      const enc = spawn("bash", ["-lc", cmd]);
+      const enc = spawn("bash", ["-c", cmd]);
       enc.stdout.on("data", (d) => log(d.toString()));
       enc.stderr.on("data", (d) => log(d.toString()));
       await new Promise((resolve) => enc.on("close", resolve));
