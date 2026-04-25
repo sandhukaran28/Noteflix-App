@@ -294,33 +294,32 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
 
     const profile = String(ctx.encodeProfile || "balanced").toLowerCase();
     const perSlideSec = Math.max(4, Math.round(totalDuration / nSlides));
-    const baseFps = profile === "insane" ? 60 : profile === "heavy" ? 48 : 30;
+    const baseFps = profile === "insane" ? 60 : profile === "heavy" ? 48 : 24;
     const dFrames = perSlideSec * baseFps;
     const fr = 1 / perSlideSec;
 
-    const outW = profile === "insane" ? 3840 : profile === "heavy" ? 2560 : 1920;
-    const outH = profile === "insane" ? 2160 : profile === "heavy" ? 1440 : 1080;
+    const outW = profile === "insane" ? 3840 : profile === "heavy" ? 2560 : 1280;
+    const outH = profile === "insane" ? 2160 : profile === "heavy" ? 1440 : 720;
 
     const zoom = `zoompan=z='zoom+0.001':d=${dFrames}:s=${outW}x${outH}`;
-    const baseFilters = [
-      zoom,
-      `scale=${outW}:${outH}:flags=lanczos`,
-      `unsharp=5:5:0.5:5:5:0.5`,
-      `eq=contrast=1.05:brightness=0.02:saturation=1.05`,
-      `vignette=PI/6`,
-    ];
+    const baseFilters = [zoom, `scale=${outW}:${outH}:flags=bicubic`];
     if (profile !== "balanced") {
       baseFilters.push(
+        `unsharp=5:5:0.5:5:5:0.5`,
+        `eq=contrast=1.05:brightness=0.02:saturation=1.05`,
+        `vignette=PI/6`,
         `minterpolate='mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=${baseFps}'`
       );
+    } else {
+      baseFilters.push(`eq=contrast=1.05:brightness=0.02:saturation=1.05`);
     }
     baseFilters.push(`format=yuv420p`);
     const vf = baseFilters.join(",");
     const af = hasAudio ? `-ar 48000 -af "loudnorm=I=-16:LRA=11:TP=-1.5"` : "";
 
     const preset =
-      profile === "insane" ? "veryslow" : profile === "heavy" ? "slower" : "slow";
-    const crf = profile === "insane" ? 16 : profile === "heavy" ? 18 : 20;
+      profile === "insane" ? "veryslow" : profile === "heavy" ? "slower" : "veryfast";
+    const crf = profile === "insane" ? 16 : profile === "heavy" ? 18 : 23;
 
     if (profile !== "balanced") {
       const passlog = path.join(ctx.jobDir, "ffpass");
