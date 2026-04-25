@@ -62,10 +62,9 @@ async function getAudioDuration(file) {
   return null;
 }
 
-function makeVttFromScript(text) {
+function makeVttFromScript(text, totalDurationSec) {
   const cleaned = text.replace(/\r/g, "").trim();
   const parts = cleaned.split(/(?<=[\.\!\?])\s+/).filter(Boolean);
-  let t = 0;
   const pad = (n) => String(n).padStart(2, "0");
   const stamp = (sec) => {
     const h = Math.floor(sec / 3600);
@@ -75,15 +74,21 @@ function makeVttFromScript(text) {
     return `${pad(h)}:${pad(m)}:${pad(s)}.${String(ms).padStart(3, "0")}`;
   };
   let vtt = "WEBVTT\n\n";
+  if (parts.length === 0) {
+    vtt += `1\n00:00:00.000 --> 00:00:03.000\n(no script)\n\n`;
+    return vtt;
+  }
+  // distribute parts proportionally to their character length over the total audio
+  // (rough approximation of reading speed, much closer to reality than fixed 3s)
+  const totalChars = parts.reduce((sum, p) => sum + p.length, 0) || 1;
+  const total = Number(totalDurationSec) > 0 ? Number(totalDurationSec) : parts.length * 3;
+  let t = 0;
   for (let i = 0; i < parts.length; i++) {
-    const dur = 3;
+    const dur = Math.max(0.8, (parts[i].length / totalChars) * total);
     const start = stamp(t);
     const end = stamp(t + dur);
     vtt += `${i + 1}\n${start} --> ${end}\n${parts[i]}\n\n`;
     t += dur;
-  }
-  if (parts.length === 0) {
-    vtt += `1\n00:00:00.000 --> 00:00:03.000\n(no script)\n\n`;
   }
   return vtt;
 }
@@ -273,10 +278,6 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
     }
     const hasAudio = !!narrationPath && fs.existsSync(narrationPath);
 
-    const vtt = makeVttFromScript(scriptText);
-    const vttPath = path.join(ctx.jobDir, "captions.vtt");
-    fs.writeFileSync(vttPath, vtt, "utf8");
-
     const slides = fs
       .readdirSync(ctx.jobDir)
       .filter((f) => /^slide-.*\.png$/i.test(f))
@@ -292,6 +293,11 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
       }
     }
 
+    // captions are timed against actual narration length so they stay in sync
+    const vtt = makeVttFromScript(scriptText, totalDuration);
+    const vttPath = path.join(ctx.jobDir, "captions.vtt");
+    fs.writeFileSync(vttPath, vtt, "utf8");
+
     const profile = String(ctx.encodeProfile || "balanced").toLowerCase();
     const perSlideSec = Math.max(4, Math.round(totalDuration / nSlides));
     const baseFps = profile === "insane" ? 60 : profile === "heavy" ? 48 : 24;
@@ -300,6 +306,12 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
 
     const outW = profile === "insane" ? 3840 : profile === "heavy" ? 2560 : 1280;
     const outH = profile === "insane" ? 2160 : profile === "heavy" ? 1440 : 720;
+
+    // burn captions in: white text, dark outline + drop shadow, bottom-centered
+    const fontSize = profile === "insane" ? 60 : profile === "heavy" ? 40 : 28;
+    const subtitleStyle = `Fontsize=${fontSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,BorderStyle=1,Outline=2,Shadow=1,Alignment=2,MarginV=${Math.round(outH * 0.07)}`;
+    const escapedVtt = vttPath.replace(/\\/g, "/").replace(/'/g, "\\'").replace(/:/g, "\\:");
+    const subtitlesFilter = `subtitles='${escapedVtt}':force_style='${subtitleStyle}'`;
 
     const zoom = `zoompan=z='zoom+0.001':d=${dFrames}:s=${outW}x${outH}`;
     const baseFilters = [zoom, `scale=${outW}:${outH}:flags=bicubic`];
@@ -313,7 +325,7 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
     } else {
       baseFilters.push(`eq=contrast=1.05:brightness=0.02:saturation=1.05`);
     }
-    baseFilters.push(`format=yuv420p`);
+    baseFilters.push(subtitlesFilter, `format=yuv420p`);
     const vf = baseFilters.join(",");
     const af = hasAudio ? `-ar 48000 -af "loudnorm=I=-16:LRA=11:TP=-1.5"` : "";
 

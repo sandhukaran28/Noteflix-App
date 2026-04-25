@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates \
     python3 python3-pip python3-venv \
     ffmpeg poppler-utils \
+    fonts-dejavu-core fonts-liberation \
  && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m venv /opt/venv
