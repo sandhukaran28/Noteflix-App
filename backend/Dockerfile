@@ -24,17 +24,17 @@ RUN mkdir -p /app/models && cd /app/models && \
       "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx" && \
     curl -LfsS -o en_US-amy-medium.onnx.json \
       "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json" && \
-    curl -LfsS -o en_US-ryan-high.onnx \
-      "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high/en_US-ryan-high.onnx" && \
-    curl -LfsS -o en_US-ryan-high.onnx.json \
-      "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high/en_US-ryan-high.onnx.json"
+    curl -LfsS -o en_US-ryan-low.onnx \
+      "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/low/en_US-ryan-low.onnx" && \
+    curl -LfsS -o en_US-ryan-low.onnx.json \
+      "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/low/en_US-ryan-low.onnx.json"
 
 ENV NODE_ENV=production \
     DATA_ROOT=/data \
     PORT=8080 \
     PIPER_BIN=/opt/venv/bin/piper \
     PIPER_VOICE_A=/app/models/en_US-amy-medium.onnx \
-    PIPER_VOICE_B=/app/models/en_US-ryan-high.onnx
+    PIPER_VOICE_B=/app/models/en_US-ryan-low.onnx
 
 EXPOSE 8080
 
