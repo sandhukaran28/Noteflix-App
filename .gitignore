@@ -1,0 +1,30 @@
+node_modules
+data
+.env
+env
+.claude
+.next
+
+# Backup directories
+git_backup/
+.git.backup/
+
+# Tar files
+*.tar
+*.tar.gz
+
+# Secrets / keys — never commit
+*.pem
+*.key
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+out/
+data/
+
+# Logs
+logs/
+*.log

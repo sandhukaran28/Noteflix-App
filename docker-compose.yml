@@ -1,0 +1,22 @@
+services:
+  api:
+    build: ./backend
+    container_name: noteflix-api
+    ports:
+      - "8080:8080"
+    volumes:
+      - noteflix-data:/data
+    env_file:
+      - ./backend/.env
+    environment:
+      - PORT=8080
+      - DATA_ROOT=/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  noteflix-data:
