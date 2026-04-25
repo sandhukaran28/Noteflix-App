@@ -1,0 +1,9 @@
+# Caddy reverse proxy with auto-HTTPS via Let's Encrypt.
+# Domain is set per-deployment via the BACKEND_DOMAIN env var (see docker-compose.yml).
+# We use nip.io so no DNS registration is needed: <ip-with-dashes>.nip.io
+# resolves to the IP automatically.
+
+{$BACKEND_DOMAIN} {
+    reverse_proxy api:8080
+    encode zstd gzip
+}

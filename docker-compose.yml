@@ -2,8 +2,10 @@ services:
   api:
     build: ./backend
     container_name: noteflix-api
+    expose:
+      - "8080"
     ports:
-      - "8080:8080"
+      - "8080:8080"   # keep direct access for healthcheck/debugging
     volumes:
       - noteflix-data:/data
     env_file:
@@ -18,5 +20,24 @@ services:
       timeout: 5s
       retries: 10
 
+  caddy:
+    image: caddy:2-alpine
+    container_name: noteflix-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    environment:
+      - BACKEND_DOMAIN=${BACKEND_DOMAIN:?set BACKEND_DOMAIN in .env or shell}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   noteflix-data:
+  caddy-data:
+  caddy-config:
