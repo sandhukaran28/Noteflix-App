@@ -32,7 +32,7 @@ async function loadConfig() {
       table: process.env.DDB_TABLE || "noteflix",
     },
     bedrock: {
-      modelId: process.env.BEDROCK_MODEL_ID || "anthropic.claude-3-haiku-20240307-v1:0",
+      modelId: process.env.BEDROCK_MODEL_ID || "au.anthropic.claude-haiku-4-5-20251001-v1:0",
       enabled: asBool(process.env.BEDROCK_ENABLED, true),
     },
     wiki: {

@@ -49,10 +49,11 @@ The architecture is one backend (EC2) + one frontend (Vercel). No separate worke
 - Create. Note **User Pool ID** and **App Client ID** — you'll need them.
 
 ### 1d. Bedrock model access
-- **Console → Bedrock → Model access** (left sidebar)
-- Click **Manage model access** → enable **Anthropic Claude 3 Haiku**
-- Wait a minute for "Access granted". Some accounts get instant approval.
-- If your home region doesn't have Bedrock, set `AWS_REGION=us-east-1` for the backend (Bedrock is widely available there).
+- AWS retired the explicit "Model access" page. Serverless foundation models are auto-enabled when first invoked. For Anthropic models, you may need to fill out a one-time use-case form before first invocation — Console → Bedrock → Model catalog → pick a Claude model → "Request access" if prompted.
+- Default model is **Claude Haiku 4.5** via the regional inference profile. The exact ID per region:
+  - Sydney (`ap-southeast-2`): `au.anthropic.claude-haiku-4-5-20251001-v1:0`
+  - US East / global: `us.anthropic.claude-haiku-4-5-20251001-v1:0` or `global.anthropic.claude-haiku-4-5-20251001-v1:0`
+- To list what's active in your region: `aws bedrock list-inference-profiles --region <region> --query "inferenceProfileSummaries[?contains(inferenceProfileId,\`haiku\`)]"`
 
 ### 1e. IAM role for EC2
 - **Console → IAM → Roles → Create role**
@@ -88,7 +89,10 @@ The architecture is one backend (EC2) + one frontend (Vercel). No separate worke
     {
       "Effect": "Allow",
       "Action": ["bedrock:InvokeModel"],
-      "Resource": "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-*"
+      "Resource": [
+        "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-*",
+        "arn:aws:bedrock:*:*:inference-profile/*anthropic.claude-haiku-*"
+      ]
     }
   ]
 }
