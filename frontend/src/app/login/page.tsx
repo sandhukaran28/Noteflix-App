@@ -252,10 +252,6 @@ export default function AuthPage() {
             </span>
           </div>
 
-          <a href="/api/auth/google/start">
-            <Button className="w-full ">Continue with Google</Button>
-          </a>
-
           {/* Footer actions */}
           <div className="mt-4 grid gap-2 text-sm">
             {mode !== "login" && (
