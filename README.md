@@ -4,8 +4,6 @@
 
 Upload a PDF → Noteflix extracts the slides, writes a duet podcast script with **AWS Bedrock (Claude Haiku 4.5)**, narrates it as alternating speakers with **Piper TTS**, burns synced captions onto the video, and renders an MP4 with Ken Burns slide animation. The whole pipeline runs as a single backend container.
 
-> Originally built for QUT CAB432 (Cloud Computing). Re-architected for personal AWS hosting and polished for portfolio use.
-
 ---
 
 ## Live demo
