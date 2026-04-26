@@ -247,9 +247,7 @@ export default function AuthPage() {
           </form>
           <div className="flex justify-center my-2">
             {" "}
-            <span className=" text-center text-sm text-gray-500 w-full">
-              or
-            </span>
+            
           </div>
 
           {/* Footer actions */}
