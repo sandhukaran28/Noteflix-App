@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { Analytics } from "@vercel/analytics/next"
 
 // ...imports unchanged...
 type Mode = "login" | "register" | "confirm" | "mfa";
@@ -178,6 +179,7 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-dvh grid place-items-center p-4">
+      <Analytics />
       <Card className="w-full max-w-md">
         <CardHeader title={title} subtitle={subtitle} />
         <CardBody>
