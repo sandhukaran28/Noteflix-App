@@ -52,6 +52,13 @@ export type MfaPending = {
   session: string; // opaque Cognito session from step 1
 };
 
+function isExpired(s: Stored | null): boolean {
+  if (!s?.exp) return true;
+  const now = Math.floor(Date.now() / 1000);
+  // 30s skew buffer so we don't trust a token about to expire
+  return s.exp - now <= 30;
+}
+
 export function useAuth() {
   const [token, setToken] = useState<string>('');
   const [user, setUser] = useState<User>(null);
@@ -59,11 +66,31 @@ export function useAuth() {
 
   useEffect(() => {
     const s = readStored();
-    if (s && s.idToken) {
-      setToken(s.idToken);
-      setUser({ username: s.username });
+    if (!s || !s.idToken || isExpired(s)) {
+      if (s) writeStored(null);
+      setReady(true);
+      return;
     }
+
+    let groups: string[] = [];
+    try {
+      const payload = JSON.parse(atob(s.idToken.split('.')[1]));
+      groups = payload['cognito:groups'] || [];
+    } catch { /* ignore malformed token */ }
+    const adminGroup = process.env.NEXT_PUBLIC_COGNITO_ADMIN_GROUP || 'Admin';
+
+    setToken(s.idToken);
+    setUser({ username: s.username, groups, isAdmin: groups.includes(adminGroup) });
     setReady(true);
+
+    // Auto-clear when the token expires while the app is open
+    const msUntilExpiry = Math.max(0, (s.exp - Math.floor(Date.now() / 1000) - 30) * 1000);
+    const timer = setTimeout(() => {
+      writeStored(null);
+      setToken('');
+      setUser(null);
+    }, msUntilExpiry);
+    return () => clearTimeout(timer);
   }, []);
 
   const finishLoginWithSession = async (
