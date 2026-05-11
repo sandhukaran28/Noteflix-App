@@ -76,7 +76,17 @@ async function synthesizePodcast(scriptLines, outPath, isDuet, voices = {}) {
     }
 
     if (segOk) {
-      parts.push(wav);
+      // Different Piper voice qualities have different native sample rates
+      // (low = 16 kHz, medium/high = 22.05 kHz). The concat demuxer doesn't
+      // resample, so mixing them makes the lower-rate voice play back too
+      // fast. Force every segment to the same rate before concat.
+      const norm = wav.replace(/\.wav$/i, ".norm.wav");
+      const normR = await sh(
+        `ffmpeg -y -loglevel error -i "${wav}" -ar 22050 -ac 1 -c:a pcm_s16le "${norm}"`,
+        { timeoutMs: 15000 }
+      );
+      const useFile = normR.status === 0 && fs.existsSync(norm) ? norm : wav;
+      parts.push(useFile);
       okSegments++;
       const pad = path.join(tmpDir, `sil-${String(i + 1).padStart(3, "0")}.wav`);
       const padR = await sh(`ffmpeg -y -f lavfi -i anullsrc=r=22050:cl=mono -t 0.20 -c:a pcm_s16le "${pad}"`, { timeoutMs: 10000 });
