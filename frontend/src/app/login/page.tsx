@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,20 @@ import { Analytics } from "@vercel/analytics/next";
 type Mode = "login" | "register" | "confirm" | "mfa";
 
 export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-dvh grid place-items-center p-6 text-sm text-slate-400">
+          Loading…
+        </div>
+      }
+    >
+      <AuthPageInner />
+    </Suspense>
+  );
+}
+
+function AuthPageInner() {
   const { login, register, confirm, resendCode, completeMfa, ready, token } =
     useAuth();
   const router = useRouter();
