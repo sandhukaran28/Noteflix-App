@@ -8,6 +8,14 @@ const { synthesizePodcast } = require("../utils/tts");
 const { fetchWikiSummary } = require("../utils/wiki");
 const { generateScript } = require("../lib/llm");
 const {
+  parseBboxLayout,
+  parseVtt,
+  getImageSize,
+  findRegionForCue,
+  pdfBboxToCrop,
+  fallbackRegion,
+} = require("../utils/pdfRegions");
+const {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
@@ -107,6 +115,90 @@ function cleanForTTS(text) {
     .trim();
 }
 
+// Build a concat-demuxer playlist of per-cue PDF region crops. Returns the
+// playlist path on success or null/throws when the inputs aren't workable.
+async function buildRegionCuts({ ctx, jobDir, sourcePath, slides, outW, outH, vtt, log, sh }) {
+  const cues = parseVtt(vtt);
+  if (!cues.length) {
+    log("Region cuts: no VTT cues parsed");
+    return null;
+  }
+
+  // Extract per-page word bounding boxes from the source PDF.
+  const bboxHtml = path.join(jobDir, "words.html");
+  const r = await sh(`pdftotext -bbox-layout "${sourcePath}" "${bboxHtml}"`);
+  if (r.status !== 0 || !fs.existsSync(bboxHtml)) {
+    log("Region cuts: pdftotext -bbox-layout failed: " + (r.stderr || ""));
+    return null;
+  }
+  const pages = parseBboxLayout(bboxHtml);
+  if (!pages.length) {
+    log("Region cuts: bbox layout had no pages");
+    return null;
+  }
+
+  // Slide PNG sizes (PDF pages rendered earlier via pdftoppm).
+  const slidePaths = slides.map((s) => path.join(jobDir, s));
+  const slideSizes = slidePaths.map((p) => getImageSize(p));
+  // If any size missing, abort cuts.
+  if (slideSizes.some((s) => !s)) {
+    log("Region cuts: could not probe one or more slide PNG sizes");
+    return null;
+  }
+
+  // Match cues → pages we actually have a PNG for.
+  const usablePages = Math.min(pages.length, slidePaths.length);
+  const sectionCount = Math.max(3, Math.ceil(cues.length / usablePages));
+  const cropPaths = [];
+
+  for (let i = 0; i < cues.length; i++) {
+    const cue = cues[i];
+    let pageIdx;
+    let crop;
+    const region = findRegionForCue(cue.text, pages.slice(0, usablePages));
+    if (region) {
+      pageIdx = region.pageIndex;
+      crop = pdfBboxToCrop(region.bbox, slideSizes[pageIdx], {
+        outAspect: outW / outH,
+      });
+    } else {
+      // No semantic match: distribute cues across pages + vertical sections so
+      // we still get visible cuts.
+      pageIdx = i % usablePages;
+      const sectionIdx = Math.floor(i / usablePages) % sectionCount;
+      crop = fallbackRegion(slideSizes[pageIdx], sectionIdx, sectionCount, outW / outH);
+    }
+    if (!crop || crop.w < 10 || crop.h < 10) {
+      log(`Region cuts: invalid crop for cue ${i + 1}, aborting`);
+      return null;
+    }
+
+    const cropPath = path.join(jobDir, `cue-${String(i + 1).padStart(3, "0")}.png`);
+    const cropCmd = `ffmpeg -y -loglevel error -i "${slidePaths[pageIdx]}" -vf "crop=${crop.w}:${crop.h}:${crop.x}:${crop.y},scale=${outW}:${outH}:flags=lanczos" "${cropPath}"`;
+    const c = await sh(cropCmd);
+    if (c.status !== 0 || !fs.existsSync(cropPath)) {
+      log(`Region cuts: crop ffmpeg failed for cue ${i + 1}: ${c.stderr || ""}`);
+      return null;
+    }
+    cropPaths.push({ path: cropPath, duration: Math.max(0.5, cue.end - cue.start) });
+  }
+
+  // Concat demuxer playlist. The last file is duplicated as required by the
+  // demuxer so the final clip's duration is honored.
+  const lines = ["ffconcat version 1.0"];
+  for (const c of cropPaths) {
+    lines.push(`file '${c.path.replace(/'/g, "'\\''")}'`);
+    lines.push(`duration ${c.duration.toFixed(3)}`);
+  }
+  const last = cropPaths[cropPaths.length - 1];
+  lines.push(`file '${last.path.replace(/'/g, "'\\''")}'`);
+
+  const concatPath = path.join(jobDir, "concat.txt");
+  fs.writeFileSync(concatPath, lines.join("\n") + "\n", "utf8");
+  log(`Region cuts: ${cropPaths.length} crops over ${pages.length} page(s)`);
+  return concatPath;
+}
+
 async function processJob(id, asset, ctx) {
   const log = (s) => fs.appendFileSync(ctx.logsPath, s + "\n");
   const start = Date.now();
@@ -145,7 +237,8 @@ async function processJob(id, asset, ctx) {
     if (isPdf) {
       if (!(await hasCmd("pdftoppm")))
         throw new Error("pdftoppm not found (install poppler-utils)");
-      const p1 = await sh(`pdftoppm -png "${sourcePath}" "${jobDir}/slide"`);
+      // Higher DPI gives us headroom for cropping regions without softness.
+      const p1 = await sh(`pdftoppm -png -r 200 "${sourcePath}" "${jobDir}/slide"`);
       log(p1.stdout || "");
       log(p1.stderr || "");
       if (p1.status !== 0) throw new Error("pdf->images failed");
@@ -313,36 +406,78 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
     const escapedVtt = vttPath.replace(/\\/g, "/").replace(/'/g, "\\'").replace(/:/g, "\\:");
     const subtitlesFilter = `subtitles='${escapedVtt}':force_style='${subtitleStyle}'`;
 
-    const zoom = `zoompan=z='zoom+0.001':d=${dFrames}:s=${outW}x${outH}`;
-    const baseFilters = [zoom, `scale=${outW}:${outH}:flags=bicubic`];
-    if (profile !== "balanced") {
-      baseFilters.push(
-        `unsharp=5:5:0.5:5:5:0.5`,
-        `eq=contrast=1.05:brightness=0.02:saturation=1.05`,
-        `vignette=PI/6`,
-        `minterpolate='mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=${baseFps}'`
-      );
-    } else {
-      baseFilters.push(`eq=contrast=1.05:brightness=0.02:saturation=1.05`);
+    // === NEW: per-cue PDF region cuts ===
+    // For PDFs we crop a different region of the page for each subtitle cue so
+    // the video cuts between content (instead of one continuous zoom).
+    let concatListPath = null;
+    if (isPdf) {
+      try {
+        concatListPath = await buildRegionCuts({
+          ctx, jobDir, sourcePath, slides, outW, outH, vtt, log, sh,
+        });
+      } catch (e) {
+        log("Region cuts step failed, falling back to default pipeline: " + (e?.message || e));
+        concatListPath = null;
+      }
     }
-    baseFilters.push(subtitlesFilter, `format=yuv420p`);
-    const vf = baseFilters.join(",");
+
+    const useCuts = !!concatListPath;
+
+    // Build filter chain. With cuts, frames already arrive at outW×outH so we
+    // skip zoompan/scale/minterpolate; without cuts, keep the original chain.
+    let vf;
+    if (useCuts) {
+      const cutFilters = [];
+      if (profile !== "balanced") {
+        cutFilters.push(
+          `unsharp=5:5:0.5:5:5:0.5`,
+          `eq=contrast=1.05:brightness=0.02:saturation=1.05`,
+          `vignette=PI/6`
+        );
+      } else {
+        cutFilters.push(`eq=contrast=1.05:brightness=0.02:saturation=1.05`);
+      }
+      cutFilters.push(subtitlesFilter, `format=yuv420p`);
+      vf = cutFilters.join(",");
+    } else {
+      const zoom = `zoompan=z='zoom+0.001':d=${dFrames}:s=${outW}x${outH}`;
+      const baseFilters = [zoom, `scale=${outW}:${outH}:flags=bicubic`];
+      if (profile !== "balanced") {
+        baseFilters.push(
+          `unsharp=5:5:0.5:5:5:0.5`,
+          `eq=contrast=1.05:brightness=0.02:saturation=1.05`,
+          `vignette=PI/6`,
+          `minterpolate='mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=${baseFps}'`
+        );
+      } else {
+        baseFilters.push(`eq=contrast=1.05:brightness=0.02:saturation=1.05`);
+      }
+      baseFilters.push(subtitlesFilter, `format=yuv420p`);
+      vf = baseFilters.join(",");
+    }
+
     const af = hasAudio ? `-ar 48000 -af "loudnorm=I=-16:LRA=11:TP=-1.5"` : "";
 
     const preset =
       profile === "insane" ? "veryslow" : profile === "heavy" ? "slower" : "veryfast";
     const crf = profile === "insane" ? 16 : profile === "heavy" ? 18 : 23;
 
+    // Input args differ between cut mode (concat demuxer) and legacy mode (glob + framerate).
+    const videoInput = useCuts
+      ? `-f concat -safe 0 -i "${concatListPath}"`
+      : `-framerate ${fr} -pattern_type glob -i "${ctx.jobDir}/slide-*.png"`;
+    const outputFpsArg = useCuts ? `-r ${baseFps}` : "";
+
     if (profile !== "balanced") {
       const passlog = path.join(ctx.jobDir, "ffpass");
-      const cmd1 = `ffmpeg -y -threads 0 -framerate ${fr} -pattern_type glob -i "${ctx.jobDir}/slide-*.png" ${hasAudio ? `-i "${narrationPath}"` : ""} -filter_complex "${vf}" -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p -an -pass 1 -passlogfile "${passlog}" -f mp4 /dev/null`;
+      const cmd1 = `ffmpeg -y -threads 0 ${videoInput} ${hasAudio ? `-i "${narrationPath}"` : ""} -filter_complex "${vf}" ${outputFpsArg} -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p -an -pass 1 -passlogfile "${passlog}" -f mp4 /dev/null`;
       log("ENC PASS1: " + cmd1);
       const enc1 = spawn("bash", ["-c", cmd1]);
       enc1.stdout.on("data", (d) => log(d.toString()));
       enc1.stderr.on("data", (d) => log(d.toString()));
       await new Promise((resolve) => enc1.on("close", resolve));
 
-      const cmd2 = `ffmpeg -y -threads 0 -framerate ${fr} -pattern_type glob -i "${ctx.jobDir}/slide-*.png" ${hasAudio ? `-i "${narrationPath}"` : ""} -filter_complex "${vf}" -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p ${hasAudio ? `${af} -c:a aac -b:a 192k` : ""} -movflags +faststart -shortest -pass 2 -passlogfile "${passlog}" "${ctx.outputPath}"`;
+      const cmd2 = `ffmpeg -y -threads 0 ${videoInput} ${hasAudio ? `-i "${narrationPath}"` : ""} -filter_complex "${vf}" ${outputFpsArg} -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p ${hasAudio ? `${af} -c:a aac -b:a 192k` : ""} -movflags +faststart -shortest -pass 2 -passlogfile "${passlog}" "${ctx.outputPath}"`;
       log("ENC PASS2: " + cmd2);
       const enc2 = spawn("bash", ["-c", cmd2]);
       enc2.stdout.on("data", (d) => log(d.toString()));
@@ -350,8 +485,8 @@ ${wiki ? `WIKI:\n${wiki}\n` : ""}`.trim();
       await new Promise((resolve) => enc2.on("close", resolve));
     } else {
       const cmd = hasAudio
-        ? `ffmpeg -y -threads 0 -framerate ${fr} -pattern_type glob -i "${ctx.jobDir}/slide-*.png" -i "${narrationPath}" -filter_complex "${vf}" -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p ${af} -c:a aac -b:a 192k -movflags +faststart -shortest "${ctx.outputPath}"`
-        : `ffmpeg -y -threads 0 -framerate ${fr} -pattern_type glob -i "${ctx.jobDir}/slide-*.png" -filter_complex "${vf}" -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p -movflags +faststart "${ctx.outputPath}"`;
+        ? `ffmpeg -y -threads 0 ${videoInput} -i "${narrationPath}" -filter_complex "${vf}" ${outputFpsArg} -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p ${af} -c:a aac -b:a 192k -movflags +faststart -shortest "${ctx.outputPath}"`
+        : `ffmpeg -y -threads 0 ${videoInput} -filter_complex "${vf}" ${outputFpsArg} -c:v libx264 -preset ${preset} -crf ${crf} -pix_fmt yuv420p -movflags +faststart "${ctx.outputPath}"`;
       log("ENC: " + cmd);
       const enc = spawn("bash", ["-c", cmd]);
       enc.stdout.on("data", (d) => log(d.toString()));
