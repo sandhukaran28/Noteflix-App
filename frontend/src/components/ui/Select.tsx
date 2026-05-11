@@ -15,6 +15,7 @@ export function Select({
       <div className="relative">
         <select
           {...props}
+          style={{ colorScheme: "dark", ...(props.style || {}) }}
           className={`appearance-none w-full px-3.5 py-2.5 pr-10 rounded-lg border border-white/10 bg-white/[0.04] text-white transition-colors duration-150 focus:outline-none focus:border-indigo-400/60 focus:bg-white/[0.06] focus:ring-2 focus:ring-indigo-500/25 ${className}`}
         >
           {children}

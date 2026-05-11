@@ -68,6 +68,19 @@ body {
   min-height: 100dvh;
 }
 
+/* Dark dropdown options (fallback for browsers ignoring color-scheme) */
+select option {
+  background-color: #131A2B;
+  color: #F5F7FB;
+}
+select option:disabled {
+  color: #5B6480;
+}
+select option:checked {
+  background: linear-gradient(0deg, #4F46E5, #4F46E5);
+  color: #FFFFFF;
+}
+
 /* Subtle scrollbar polish */
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-thumb {
