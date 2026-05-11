@@ -1,8 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  --background: #efeef1;
-  --foreground: #faf9fa;
+  /* Brand */
+  --brand-50:  #EEF2FF;
+  --brand-100: #E0E7FF;
+  --brand-300: #A5B4FC;
+  --brand-400: #818CF8;
+  --brand-500: #6366F1;
+  --brand-600: #4F46E5;
+  --brand-700: #4338CA;
+  --brand-800: #3730A3;
+
+  --accent-500: #A855F7;
+  --accent-600: #9333EA;
+
+  --success-500: #10B981;
+  --warning-500: #F59E0B;
+  --danger-500:  #EF4444;
+
+  /* Surfaces */
+  --bg-0: #07090F;
+  --bg-1: #0B0F1A;
+  --bg-2: #111726;
+  --bg-3: #161D2E;
+
+  --surface-1: #131A2B;
+  --surface-2: #1A2238;
+  --surface-3: #232C46;
+
+  /* Borders */
+  --border-1: #1F2740;
+  --border-2: #2A3354;
+  --border-3: #3A4570;
+
+  /* Text */
+  --text-1: #F5F7FB;
+  --text-2: #C8CFE0;
+  --text-3: #8A93AB;
+  --text-4: #5B6480;
+
+  /* Tailwind theme bridge */
+  --background: var(--bg-1);
+  --foreground: var(--text-1);
 }
 
 @theme inline {
@@ -12,13 +51,80 @@
   --font-mono: var(--font-geist-mono);
 }
 
-
+html, body {
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
 
 body {
-    background: radial-gradient(
-    75.14% 111.46% at 50% -11.46%,
-    #b1d0fc 0%,
-    #f4d6ff 100%
-  );
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(99,102,241,0.18), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(168,85,247,0.14), transparent 60%),
+    linear-gradient(180deg, #07090F 0%, #0B0F1A 40%, #0B0F1A 100%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+/* Subtle scrollbar polish */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: #2A3354;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: #3A4570; background-clip: padding-box; border: 2px solid transparent; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Reusable utility surfaces */
+.surface-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)) , var(--surface-1);
+  border: 1px solid var(--border-1);
+}
+
+.glass-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #A5B4FC 0%, #C4B5FD 50%, #F0ABFC 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #6366F1 0%, #4F46E5 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.10) inset,
+    0 8px 24px -8px rgba(79,70,229,0.55);
+}
+.btn-primary:hover {
+  background: linear-gradient(180deg, #7378F4 0%, #5750E8 100%);
+}
+
+.focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.5), 0 0 0 4px rgba(99,102,241,0.18);
+}
+
+/* Subtle dotted grid for hero panels */
+.dotted-grid {
+  background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Auth split background */
+.auth-hero {
+  background:
+    radial-gradient(600px 300px at 20% 20%, rgba(99,102,241,0.35), transparent 60%),
+    radial-gradient(500px 280px at 80% 80%, rgba(168,85,247,0.30), transparent 60%),
+    linear-gradient(135deg, #1A1F3A 0%, #0F1326 100%);
 }

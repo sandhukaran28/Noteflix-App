@@ -58,11 +58,18 @@ export default function Dashboard({
           <div className="grid gap-8 max-w-6xl">
             <HeroUpload token={token} quota={quota} onQuotaExceeded={onQuotaExceeded} />
             <section>
-              <div className="flex items-end justify-between mb-3">
-                <h2 className="text-lg font-semibold">Recent generations</h2>
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-white tracking-tight">
+                    Recent generations
+                  </h2>
+                  <p className="text-sm text-slate-400 mt-0.5">
+                    Your latest jobs — click any card to view details
+                  </p>
+                </div>
                 <button
                   onClick={() => setView("library")}
-                  className="text-sm text-[#7c64ff] hover:underline"
+                  className="text-sm text-indigo-300 hover:text-indigo-200 font-medium transition"
                 >
                   View all →
                 </button>

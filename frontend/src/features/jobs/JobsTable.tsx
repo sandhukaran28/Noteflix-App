@@ -30,6 +30,7 @@ export default function JobsTable({ token }: { token: string }) {
     const id = setInterval(load, 4000);
     return () => clearInterval(id);
   }, [token]);
+
   useEffect(() => {
     const onRef = () => load();
     window.addEventListener("jobs:refresh", onRef);
@@ -42,7 +43,7 @@ export default function JobsTable({ token }: { token: string }) {
         title="Jobs"
         subtitle="Background video renders"
         right={
-          <Button variant="ghost" onClick={load}>
+          <Button variant="ghost" onClick={load} size="sm">
             Refresh
           </Button>
         }
@@ -50,35 +51,35 @@ export default function JobsTable({ token }: { token: string }) {
       <CardBody>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-gray-500">
-              <tr>
-                <th className="py-2 pr-4">ID</th>
-                <th className="py-2 pr-4">Asset</th>
-                <th className="py-2 pr-4">Status</th>
-                <th className="py-2 pr-4">Profile</th>
-                <th className="py-2 pr-4">Created</th>
-                <th className="py-2 pr-4"></th>
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-white/5">
+                <th className="py-3 pr-4">ID</th>
+                <th className="py-3 pr-4">Asset</th>
+                <th className="py-3 pr-4">Status</th>
+                <th className="py-3 pr-4">Profile</th>
+                <th className="py-3 pr-4">Created</th>
+                <th className="py-3 pr-4"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r: any) => (
                 <tr
                   key={r.id}
-                  className="border-t border-gray-100"
+                  className="border-b border-white/5 hover:bg-white/[0.02] transition"
                 >
-                  <td className="py-2 pr-4 font-mono text-xs">
+                  <td className="py-3 pr-4 font-mono text-xs text-slate-400">
                     {r.id.slice(0, 8)}
                   </td>
-                  <td className="py-2 pr-4">{r.assetName || r.assetId}</td>
-                  <td className="py-2 pr-4">
+                  <td className="py-3 pr-4 text-white">{r.assetName || r.assetId}</td>
+                  <td className="py-3 pr-4">
                     <StatusPill status={r.status} />
                   </td>
-                  <td className="py-2 pr-4">{r.profile}</td>
-                  <td className="py-2 pr-4">
+                  <td className="py-3 pr-4 text-slate-300">{r.profile}</td>
+                  <td className="py-3 pr-4 text-slate-400">
                     {new Date(r.startedAt).toLocaleString()}
                   </td>
-                  <td className="py-2 pr-4 text-right">
-                    <Button variant="outline" onClick={() => setSelected(r)}>
+                  <td className="py-3 pr-4 text-right">
+                    <Button variant="outline" size="sm" onClick={() => setSelected(r)}>
                       Open
                     </Button>
                   </td>
@@ -86,7 +87,7 @@ export default function JobsTable({ token }: { token: string }) {
               ))}
               {!rows.length && (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-gray-500">
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
                     {busy ? "Loading…" : "No jobs yet"}
                   </td>
                 </tr>

@@ -71,9 +71,16 @@ export default function JobsGrid({
 
   if (!loading && !jobs.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-white/40 p-10 text-center">
-        <div className="text-sm text-gray-500">
-          {emptyHint || "Nothing here yet — upload a PDF to generate your first video."}
+      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center">
+        <div className="mx-auto w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-400/20 grid place-items-center text-indigo-300 mb-3">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7" />
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+          </svg>
+        </div>
+        <div className="text-sm text-slate-300 font-medium">No videos yet</div>
+        <div className="text-sm text-slate-500 mt-1">
+          {emptyHint || "Upload a PDF to generate your first video."}
         </div>
       </div>
     );

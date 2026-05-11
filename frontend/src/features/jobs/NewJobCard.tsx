@@ -122,7 +122,7 @@ export default function NewJobCard({ token }: { token: string }) {
           <Button onClick={createJob} disabled={busy || !assetId}>
             {busy ? "Queuing…" : "Queue job"}
           </Button>
-          {note && <span className="text-sm text-gray-600">{note}</span>}
+          {note && <span className="text-sm text-slate-400">{note}</span>}
         </div>
       </CardBody>
     </Card>

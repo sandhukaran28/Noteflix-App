@@ -22,7 +22,6 @@ export default function HeroUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const isPro = !!quota?.isPro;
 
-  // auto-clear status after 6s so it doesn't linger after the job is done
   useEffect(() => {
     if (!msg) return;
     const t = setTimeout(() => setMsg(""), 6000);
@@ -87,62 +86,81 @@ export default function HeroUpload({
         if (f && f.type === "application/pdf") onSelectFile(f);
         else setErr("Please drop a PDF file.");
       }}
-      className={`relative rounded-3xl border-2 border-dashed transition p-10 sm:p-14 text-center ${
-        drag ? "border-[#a28ff3] bg-white/80" : "border-white/70 bg-white/50"
-      } backdrop-blur-md`}
+      className={`relative rounded-3xl border-2 border-dashed transition-all duration-200 p-10 sm:p-14 text-center overflow-hidden ${
+        drag
+          ? "border-indigo-400/60 bg-indigo-500/[0.06]"
+          : "border-white/10 bg-white/[0.02] hover:border-white/15"
+      }`}
     >
-      <div className="mx-auto w-16 h-16 rounded-2xl bg-[#a28ff3] grid place-items-center text-white mb-4 shadow-md">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <path d="M17 8l-5-5-5 5" />
-          <path d="M12 3v12" />
-        </svg>
-      </div>
-      <h2 className="text-2xl font-semibold text-gray-900">Drop a PDF to generate a video</h2>
-      <p className="text-gray-500 mt-1">We'll extract slides, write a podcast-style script, narrate it as a duet, and render an MP4.</p>
+      <div className="absolute inset-0 dotted-grid opacity-30 pointer-events-none" />
 
-      <div className="mt-5 flex flex-wrap justify-center gap-3 items-end">
-        <Select
-          label=""
-          value={encodeProfile}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEncodeProfile(e.target.value)}
-        >
-          <option value="balanced">Balanced (720p) — fastest</option>
-          <option value="heavy" disabled={!isPro}>
-            Heavy (1440p, 2-pass){isPro ? "" : " — Pro only"}
-          </option>
-          <option value="insane" disabled={!isPro}>
-            Insane (4K, 2-pass){isPro ? "" : " — Pro only"}
-          </option>
-        </Select>
-      </div>
-
-      <div className="mt-6">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="application/pdf"
-          className="hidden"
-          onChange={(e) => onSelectFile(e.target.files?.[0] || null)}
-        />
-        <button
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          className="px-5 py-2.5 rounded-xl bg-[#a28ff3] text-white font-medium hover:opacity-90 disabled:opacity-50"
-        >
-          {busy ? "Uploading…" : "Choose PDF"}
-        </button>
-        <span className="ml-3 text-sm text-gray-500">or drag &amp; drop</span>
-      </div>
-
-      {(msg || err) && (
-        <div className={`mt-5 text-sm ${err ? "text-red-600" : "text-gray-600"}`}>
-          {err || msg}
+      <div className="relative">
+        <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 grid place-items-center text-white mb-5 shadow-lg shadow-indigo-900/40">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <path d="M17 8l-5-5-5 5" />
+            <path d="M12 3v12" />
+          </svg>
         </div>
-      )}
-      {file && busy && (
-        <div className="mt-2 text-xs text-gray-400">{file.name}</div>
-      )}
+        <h2 className="text-2xl font-semibold tracking-tight text-white">
+          Drop a PDF to generate a video
+        </h2>
+        <p className="text-slate-400 mt-2 max-w-lg mx-auto leading-relaxed">
+          We extract slides, write a podcast-style script, narrate it as a duet,
+          and render a polished MP4 — all in one go.
+        </p>
+
+        <div className="mt-6 flex flex-wrap justify-center gap-3 items-end">
+          <div className="min-w-[260px]">
+            <Select
+              label="Encode profile"
+              value={encodeProfile}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEncodeProfile(e.target.value)}
+            >
+              <option value="balanced">Balanced (720p) — fastest</option>
+              <option value="heavy" disabled={!isPro}>
+                Heavy (1440p, 2-pass){isPro ? "" : " — Pro only"}
+              </option>
+              <option value="insane" disabled={!isPro}>
+                Insane (4K, 2-pass){isPro ? "" : " — Pro only"}
+              </option>
+            </Select>
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={(e) => onSelectFile(e.target.files?.[0] || null)}
+          />
+          <button
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="btn-primary px-5 py-2.5 rounded-lg text-white font-semibold text-sm border border-indigo-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            {busy ? "Uploading…" : "Choose PDF"}
+          </button>
+          <span className="text-sm text-slate-500">or drag &amp; drop</span>
+        </div>
+
+        {(msg || err) && (
+          <div
+            className={`mt-5 inline-block text-sm px-3 py-1.5 rounded-lg border ${
+              err
+                ? "text-red-200 bg-red-500/10 border-red-500/30"
+                : "text-emerald-200 bg-emerald-500/10 border-emerald-500/30"
+            }`}
+          >
+            {err || msg}
+          </div>
+        )}
+        {file && busy && (
+          <div className="mt-2 text-xs text-slate-500">{file.name}</div>
+        )}
+      </div>
     </div>
   );
 }
